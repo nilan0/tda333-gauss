@@ -31,6 +31,60 @@ eliminate:
 	## Implement eliminate here
 	## 
 
+.eqv	_I	$t8
+.eqv	_J	$t9
+#.eqv	M	$v0
+.eqv	_matrix	$a0
+.eqv	_N	$a1
+.eqv	_B	$a2
+.eqv	_k  $t7
+.eqv	_M	$s0
+
+move	_M, $zero
+
+
+	move	_I, $zero
+loop_block_rows:
+	
+	move	_J, $zero
+loop_block_cols:
+
+# Init loop_pivot
+	move	_k, $zero
+	
+# min(I, J)
+	move	$t0, _I
+	# BRANCH DELAY SLOT?
+	ble		_I, _J, end_min
+	move	$t0, _J
+end_min:
+	addiu	$t0, $t0, 1
+	mul		$t0, $t0, _M
+
+
+
+loop_pivot_elems:
+
+	
+	
+less_then:
+	
+
+if_elem_in_block:
+calc_loop:
+end_calc_loop:
+if_elem_last:
+end_loop_pivot_elem:
+
+end_loop_block_cols:
+	blt		_J, _B, loop_block_cols
+	addiu	_J, _J, 1
+	
+end_loop_block_rows:
+	blt		_I, _B, loop_block_rows
+	addiu	_I, _I, 1
+	
+
 	lw		$ra, 0($sp)			# done restoring registers
 	addiu	$sp, $sp, 4			# remove stack frame
 
