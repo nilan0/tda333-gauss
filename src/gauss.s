@@ -3,6 +3,8 @@
 start:
 	la		$a0, matrix_4x4		# a0 = A (base address of matrix)
 	li		$a1, 4    		    # a1 = N (number of elements per row)
+	li		$a2, 2				# a2 = B
+	
 								# <debug>
 	jal 	print_matrix	    # print matrix before elimination
 	nop							# </debug>
@@ -33,56 +35,178 @@ eliminate:
 
 .eqv	_I	$t8
 .eqv	_J	$t9
+.eqv	_j	$t6
+.eqv	_i	$t5
 #.eqv	M	$v0
-.eqv	_matrix	$a0
+.eqv	_A	$a0
 .eqv	_N	$a1
 .eqv	_B	$a2
 .eqv	_k  $t7
 .eqv	_M	$s0
 
-move	_M, $zero
+# TODO:
+div		_N, _B
+mflo	_M
 
 
 	move	_I, $zero
 loop_block_rows:
+	move	$s1, _I
+	add		$s1, $s1, _M
+	add		$s1, $s1, -1
 	
 	move	_J, $zero
 loop_block_cols:
+	move	$s2, _J
+	add		$s2, $s2, _M
+	add		$s2, $s2, -1
 
 # Init loop_pivot
 	move	_k, $zero
 	
 # min(I, J)
-	move	$t0, _I
+	move	$t0, $s1
 	# BRANCH DELAY SLOT?
-	ble		_I, _J, end_min
-	move	$t0, _J
+	ble		$s1, $s2, end_min
+	move	$t0, $s2
 end_min:
-	addiu	$t0, $t0, 1
-	mul		$t0, $t0, _M
-
-
 
 loop_pivot_elems:
 
+if_elem_in_block:
+	blt		_k, _I, loop_below_pivot_row
+	bgt		_k, $s1, loop_below_pivot_row
+
+	#Max
+	add		$t0, _k, 1
+	move	_j, $t0
+	# BRANCH DELAY SLOT?
+	bge		$t0, _J, end_max
+	move	_j, _J
+end_max:
+
+	# $t1 A[k][k]
+	move	$t1, _k
+	mul		$t1, $t1, _M
+	add		$t1, $t1, _k
+	sll		$t1, $t1, 2
+	add		$t1, $t1, _A
+loop_calc:
+	# $t0 [k][j]
+	move	$t0, _k
+	mul		$t0, $t0, _M
+	add		$t0, $t0, _j
+	sll		$t0, $t0, 2
+	add		$t0, $t0, _A
+
+	lwc1	$f0, ($t0)
+	lwc1	$f1, ($t1)
+
+	div.s	$f0, $f0, $f1
+	swc1	$f0, ($t0)
+
+	#lw		$t2, ($t0)
+	#lw		$t3, ($t1)
+
+	#div		$t2, $t3
+	#mflo	$t2			# move from lo
+
+	#sw		$t2, ($t0)
+
+end_loop_calc:
+	ble		_k, $s2, loop_calc
+	addiu	_k, _k, 1
+
+if_elem_last:
+	bne		_j, _N, loop_below_pivot_row
+	li		$t0, 1
+	sw		$t0, ($t1)
 	
-	
-less_then:
+#####################################
+	#Max
+	add		$t0, _k, 1
+	move	_i, $t0
+	# BRANCH DELAY SLOT?
+	bge		$t0, _I, loop_below_pivot_row
+	move	_i, _I
+
+loop_below_pivot_row:
 	
 
-if_elem_in_block:
-calc_loop:
-end_calc_loop:
-if_elem_last:
+	# $t1 A[i][k]
+	move	$t1, _i
+	mul		$t1, $t1, _M
+	add		$t1, $t1, _k
+	sll		$t1, $t1, 2
+	add		$t1, $t1, _A
+
+
+#Max
+	add		$t0, _k, 1
+	move	_j, $t0
+	# BRANCH DELAY SLOT?
+	bge		$t0, _J, loop_block_row
+	move	_j, _J
+	
+loop_block_row:
+	# $t0 [k][j]
+	move	$t0, _k
+	mul		$t0, $t0, _M
+	add		$t0, $t0, _j
+	sll		$t0, $t0, 2
+	add		$t0, $t0, _A
+
+	# $t2 [i][j]
+	move	$t2, _i
+	mul		$t2, $t2, _M
+	add		$t2, $t2, _j
+	sll		$t2, $t2, 2
+	add		$t2, $t2, _A
+
+	lwc1	$f0, ($t2)
+	lwc1	$f1, ($t1)
+	lwc1	$f2, ($t0)
+
+	mul.s	$f1, $f1, $f2
+	sub.s	$f0, $f0, $f1
+
+	swc1	$f0, ($t2)
+
+	#lw		$t3, ($t2)
+	#lw		$t4, ($t1)
+	#lw		$t0, ($t0)
+
+	#mul		$t4, $t4, $t0
+	#subu	$t3, $t3, $t4
+
+	#sw		$t3, ($t2)
+
+end_loop_block_row:
+	ble		_j, $s2, loop_block_row
+	addiu	_j, _j, 1
+
+# if_elem_last:
+	bne		_j, _N, end_loop_below_pivot_row
+	nop
+	sw		$zero, ($t1)
+
+####################################
+
+end_loop_below_pivot_row:
+	ble		_i, $s1, loop_below_pivot_row
+	addiu	_i, _i, 1
+
 end_loop_pivot_elem:
+	ble		_k, $t0, loop_pivot_elems
+	addiu	_k, _k, 1
 
 end_loop_block_cols:
-	blt		_J, _B, loop_block_cols
-	addiu	_J, _J, 1
+	blt		_J, _N, loop_block_cols
+	addu	_J, _J, _M
 	
 end_loop_block_rows:
-	blt		_I, _B, loop_block_rows
-	addiu	_I, _I, 1
+	blt		_I, _N, loop_block_rows
+	addu	_I, _I, _M
 	
 
 	lw		$ra, 0($sp)			# done restoring registers
