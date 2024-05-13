@@ -3,7 +3,7 @@
 start:
 	la		$a0, matrix_4x4		# a0 = A (base address of matrix)
 	li		$a1, 4    		    # a1 = N (number of elements per row)
-	li		$a2, 1				# a2 = B
+	li		$a2, 4				# a2 = B
 	
 								# <debug>
 	jal 	print_matrix	    # print matrix before elimination
@@ -25,6 +25,11 @@ exit:
 #			$a1  - number of elements per row (N)
 
 eliminate:
+	#l.s		$f0, _0f
+	#addu	$t0, $a0, $a1
+	#s.s		$f0, ($t0)
+
+
 	# If necessary, create stack frame, and save return address from ra
 	addiu	$sp, $sp, -4		# allocate stack frame
 	sw		$ra, 0($sp)			# done saving registers
@@ -32,44 +37,52 @@ eliminate:
 	##
 	## Implement eliminate here
 	## 
+.eqv	_A	$a0
+
+.eqv	_M	$s0
+.eqv	_N	$a1
+.eqv	_B	$a2
+# size of block is (M*M)
+div		_N, _B
+mflo	_M
+
 
 .eqv	_I	$t8
 .eqv	_J	$t9
+.eqv	_block_row_max $s1
+.eqv	_block_col_max $s2
+.eqv	_k  $t7
 .eqv	_j	$t6
 .eqv	_i	$t5
-#.eqv	M	$v0
-.eqv	_A	$a0
-.eqv	_N	$a1
-.eqv	_B	$a2
-.eqv	_k  $t7
-.eqv	_M	$s0
+.eqv	_pivot_max $t4
+.eqv	_A_kk $t1
+.eqv	_A_kj $t0
 
-# TODO:
-div		_N, _B
-mflo	_M
+.eqv	_A_ij $t2
+.eqv	_A_ik $t1
+.eqv	_A_kj $t0
 
 # for all block rows
 	move	_I, $zero
 loop_block_rows:
-	move	$s1, _I
-	addu	$s1, $s1, _M
-	addu	$s1, $s1, -1
+	addu	_block_row_max, _I, _M
+	addu	_block_row_max, _block_row_max, -1
 
-#for all block columns
+	
+
+# for all block columns
 	move	_J, $zero
 loop_block_cols:
-	move	$s2, _J
-	addu	$s2, $s2, _M
-	addu	$s2, $s2, -1
+	addu	_block_col_max, _J, _M
+	addu	_block_col_max, _block_col_max, -1
 
 # loop over pivot elements
 	move	_k, $zero
-	
 # Min
-	move	$t4, $s1
-	ble		$s1, $s2, loop_pivot_elems
+	move	_pivot_max, _block_row_max
+	ble		_block_row_max, _block_col_max, loop_pivot_elems
 	nop
-	move	$t4, $s2
+	move	_pivot_max, _block_col_max
 
 # loop over pivot elements
 loop_pivot_elems:
@@ -78,144 +91,131 @@ loop_pivot_elems:
 if_elem_in_block:
 	blt		_k, _I, loop_below_pivot_row
 	nop
-	bgt		_k, $s1, loop_below_pivot_row
+	bgt		_k, _block_row_max, loop_below_pivot_row
 	nop
 
 # perform calculations on pivot
 # Max
-	addu	$t0, _k, 1
-	move	_j, $t0
-	bge		$t0, _J, end_max
+	addu	_j, _k, 1
+	bge		_j, _J, end_max
 	nop
 	move	_j, _J
 end_max:
 
-	# $t1 A[k][k]
-	move	$t1, _k
-	mulu	$t1, $t1, _M
-	addu	$t1, $t1, _k
-	sll		$t1, $t1, 2
-	addu	$t1, $t1, _A
+	# A[k][k]
+	mulu	_A_kk, _k, _M
+	addu	_A_kk, _A_kk, _k
+	sll		_A_kk, _A_kk, 2
+	addu	_A_kk, _A_kk, _A
+
 
 loop_calc:
-	# $t0 [k][j]
-	move	$t0, _j
-	mulu	$t0, $t0, _M
-	addu	$t0, $t0, _k
-	sll		$t0, $t0, 2
-	addu	$t0, $t0, _A
+	# A[k][j]
+	mulu	_A_kj, _k, _N
+	addu	_A_kj, _A_kj, _j
+	sll		_A_kj, _A_kj, 2
+	addu	_A_kj, _A_kj, _A
 
-	l.s		$f0, ($t0)
-	l.s		$f1, ($t1)
+	l.s		$f0, (_A_kj)
+	l.s		$f1, (_A_kk)
 
 	div.s	$f0, $f0, $f1
-	s.s		$f0, ($t0)
-
-	#lw		$t2, ($t0)
-	#lw		$t3, ($t1)
-
-	#div		$t2, $t3
-	#mflo	$t2			# move from lo
-
-	#sw		$t2, ($t0)
+	s.s		$f0, (_A_kj)
 
 end_loop_calc:
-	ble		_k, $s2, loop_calc
+	ble		_k, _block_col_max, loop_calc
 	addiu	_k, _k, 1
+
+
 
 # if last element in row
 if_elem_last:
-	bne		_j, _N, loop_below_pivot_row
-	li		$t0, 1
-	sw		$t0, ($t1)
-	
+	bne		_j, _N, not_elem_last
+	nop
+	l.s		$f0, _1f
+	s.s		$f0, (_A_kk)
+not_elem_last:
+
+
 # for all rows below pivot row within block
 # Max
-	addu	$t0, _k, 1
-	move	_i, $t0
-	# BRANCH DELAY SLOT?
-	bge		$t0, _I, loop_below_pivot_row
+	addu	_i, _k, 1
+	bge		_i, _I, loop_below_pivot_row
 	nop
 	move	_i, _I
 
 loop_below_pivot_row:
-	
-
-	# $t1 A[i][k]
-	move	$t1, _k
-	mulu	$t1, $t1, _M
-	addu	$t1, $t1, _i
-	sll		$t1, $t1, 2
-	addu	$t1, $t1, _A
+	# A[i][k]
+	mulu	_A_ik, _i, _M
+	addu	_A_ik, _A_ik, _k
+	sll		_A_ik, _A_ik, 2
+	addu	_A_ik, _A_ik, _A
 
 # for all elements in row within block
 #Max
-	addu	$t0, _k, 1
-	move	_j, $t0
-	# BRANCH DELAY SLOT?
-	bge		$t0, _J, loop_block_row
+	addu	_j, _k, 1
+	bge		_j, _J, loop_block_row
 	nop
 	move	_j, _J
 	
 loop_block_row:
-	# $t0 [k][j]
-	move	$t0, _j
-	mulu	$t0, $t0, _M
-	addu	$t0, $t0, _k
-	sll		$t0, $t0, 2
-	addu	$t0, $t0, _A
+	# A[k][j]
+	mulu	_A_kj, _k, _N
+	addu	_A_kj, _A_kj, _j
+	sll		_A_kj, _A_kj, 2
+	addu	_A_kj, _A_kj, _A
 
-	# $t2 [i][j]
-	move	$t2, _j
-	mulu	$t2, $t2, _M
-	addu	$t2, $t2, _i
-	sll		$t2, $t2, 2
-	addu	$t2, $t2, _A
+	# A[i][j]
+	mulu	_A_ij, _i, _N
+	addu	_A_ij, _A_ij, _j
+	sll		_A_ij, _A_ij, 2
+	addu	_A_ij, _A_ij, _A
 
-	l.s		$f0, ($t2)
-	l.s		$f1, ($t1)
-	l.s		$f2, ($t0)
+	l.s		$f0, (_A_ij)
+	l.s		$f1, (_A_ik)
+	l.s		$f2, (_A_kj)
 
 	mul.s	$f1, $f1, $f2
 	sub.s	$f0, $f0, $f1
 
-	s.s		$f0, ($t2)
-
-	#lw		$t3, ($t2)
-	#lw		$t4, ($t1)
-	#lw		$t0, ($t0)
-
-	#mul		$t4, $t4, $t0
-	#subu	$t3, $t3, $t4
-
-	#sw		$t3, ($t2)
+	s.s		$f0, (_A_ij)
 
 end_loop_block_row:
-	ble		_j, $s2, loop_block_row
 	addiu	_j, _j, 1
+	ble		_j, _block_col_max, loop_block_row
+	nop
 
 # if last element in row
 	bne		_j, _N, end_loop_below_pivot_row
 	nop
-	sw		$zero, ($t1)
-
-####################################
+	l.s		$f5, _0f
+	s.s		$f5, (_A_ik)
 
 end_loop_below_pivot_row:
-	ble		_i, $s1, loop_below_pivot_row
 	addiu	_i, _i, 1
+	ble		_i, _block_row_max, loop_below_pivot_row
+	nop
 
-end_loop_pivot_elem:
-	ble		_k, $t4, loop_pivot_elems
+end_loop_pivot_elems:
 	addiu	_k, _k, 1
+	nop
+	ble		_k, _pivot_max, loop_pivot_elems
+	nop
 
 end_loop_block_cols:
-	blt		_J, _N, loop_block_cols
 	addu	_J, _J, _M
+	nop
+
+	blt		_J, _N, loop_block_cols
+	nop
 	
 end_loop_block_rows:
-	blt		_I, _N, loop_block_rows
 	addu	_I, _I, _M
+	nop
+
+	blt		_I, _N, loop_block_rows
+	nop
+	
 	
 
 	lw		$ra, 0($sp)			# done restoring registers
@@ -316,6 +316,8 @@ loop_s0:
 
 ### Data segment 
 	.data
+_1f: .float 1.0
+_0f: .float 0.0
 	
 ### String constants
 spaces:
