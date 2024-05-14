@@ -90,7 +90,7 @@ loop_block_cols:
 
 
 # loop over pivot elements
-	move	_kN, _A
+	move	_kN, _k
 loop_pivot_elems:
 	addu 	_max_kJ, _k, 1
 	bge		_max_kJ, _J, end_max
@@ -162,17 +162,19 @@ not_elem_last:
 # for all rows below pivot row within block
 # Max
 	addu	_i, _k, 1
-	bge		_i, _I, loop_below_pivot_row
+	bge		_i, _I, end_max_0
 	nop
 	move	_i, _I
+	nop
+end_max_0:
 
 # iN
-	#move	_iN, _i
+	mulu	_iN, _i, _N
 	
 loop_below_pivot_row:
 	# A[i][k]
-	mulu	_A_ik, _i, _N
-	addu	_A_ik, _A_ik, _k
+	#mulu	_A_ik, _i, _N
+	addu	_A_ik, _iN, _k
 	sll		_A_ik, _A_ik, 2
 	addu	_A_ik, _A_ik, _A
 	
@@ -182,14 +184,14 @@ loop_block_row:
 
 
 	# A[k][j]
-	mulu	_A_kj, _k, _N
-	addu	_A_kj, _A_kj, _j
+	#mulu	_A_kj, _k, _N
+	addu	_A_kj, _kN, _j
 	sll		_A_kj, _A_kj, 2
 	addu	_A_kj, _A_kj, _A
 
 	# A[i][j]
-	mulu	_A_ij, _i, _N
-	addu	_A_ij, _A_ij, _j
+	#mulu	_A_ij, _i, _N
+	addu	_A_ij, _iN, _j
 	sll		_A_ij, _A_ij, 2
 	addu	_A_ij, _A_ij, _A
 
