@@ -43,34 +43,34 @@ eliminate:
 .eqv	_N	$a1
 .eqv	_B	$a2
 # size of block is (M*M)
-div		_N, _B
+div	_N, _B
 mflo	_M
 
 
-.eqv	_I	$t8
-.eqv	_J	$t9
+.eqv	_I		$t8
+.eqv	_J		$t9
 .eqv	_block_row_max $s1
 .eqv	_block_col_max $s2
-.eqv	_k  $t7
-.eqv	_j	$t6
-.eqv	_i	$t5
-.eqv	_pivot_max $t4
-.eqv	_A_kk $t1
-.eqv	_A_kj $t0
+.eqv	_k  		$t7
+.eqv	_j		$t6
+.eqv	_i		$t5
+.eqv	_pivot_max 	$t4
+.eqv	_A_kk		$t1
+.eqv	_A_kj		$t0
 
-.eqv	_A_ij $t2
-.eqv	_A_ik $t1
-.eqv	_A_kj $t0
+.eqv	_A_ij		$t2
+.eqv	_A_ik		$t1
+.eqv	_A_kj		$t0
 
-.eqv	_max_kJ $t3
+.eqv	_max_kJ		$t3
 .eqv	_4N		$s5
-.eqv	_k4N	$s3
-.eqv	_i4N	$s4
+.eqv	_k4N		$s3
+.eqv	_i4N		$s4
 .eqv	_4M		$s6 
 .eqv	_kN		$s7
 
-sll		_4N, _N, 2
-sll		_4M, _M, 2
+	sll	_4N, _N, 2
+	sll	_4M, _M, 2
 
 # for all block rows
 	move	_I, $zero
@@ -87,16 +87,15 @@ loop_block_cols:
 # loop over pivot elements
 	move	_k, $zero
 # Min
+	ble	_block_row_max, _block_col_max, loop_pivot_elems
 	move	_pivot_max, _block_row_max
-	ble		_block_row_max, _block_col_max, loop_pivot_elems
-	nop
 	move	_pivot_max, _block_col_max
 
 # loop over pivot elements
 	move	_k4N, _k
 loop_pivot_elems:
 	addu 	_max_kJ, _k, 4
-	bge		_max_kJ, _J, end_max
+	bge	_max_kJ, _J, end_max
 	nop
 	move	_max_kJ, _J
 end_max:
@@ -127,7 +126,6 @@ loop_calc:
 
 end_loop_calc:
 	addiu	_j, _j, 4
-	nop
 	ble		_j, _block_col_max, loop_calc
 	nop
 	
@@ -144,7 +142,7 @@ not_elem_last:
 # for all rows below pivot row within block
 # Max
 	addu	_i, _k, 4
-	bge		_i, _I, end_max_0
+	bge	_i, _I, end_max_0
 	nop
 	move	_i, _I
 	nop
@@ -158,8 +156,8 @@ init_loop_below_pivot_row:
 loop_below_pivot_row:
 	# A[i][k]
 	addu	_A_ik, _i4N, _k
-	addu	_A_ik, _A_ik, _A
 	move	_j, _max_kJ
+	addu	_A_ik, _A_ik, _A
 
 loop_block_row:
 	# A[k][j]
@@ -170,22 +168,18 @@ loop_block_row:
 	addu	_A_ij, _i4N, _j
 	addu	_A_ij, _A_ij, _A
 
-	l.s		$f0, (_A_ij)
-	nop
 	l.s		$f1, (_A_ik)
-	nop
 	l.s		$f2, (_A_kj)
-	nop
+	l.s		$f0, (_A_ij)
 
 	mul.s	$f1, $f1, $f2
-	nop
 	sub.s	$f0, $f0, $f1
 
 	s.s		$f0, (_A_ij)
 	
 end_loop_block_row:
 	addiu	_j, _j, 4
-	ble		_j, _block_col_max, loop_block_row
+	ble	_j, _block_col_max, loop_block_row
 	nop
 
 # if last element in row
@@ -196,15 +190,13 @@ end_loop_block_row:
 
 end_loop_below_pivot_row:
 	addiu	_i, _i, 4
-	addu	_i4N, _i4N, _4N
 	ble		_i, _block_row_max, loop_below_pivot_row
-	nop
+	addu	_i4N, _i4N, _4N
 
 end_loop_pivot_elems:
 	addiu	_k, _k, 4
-	addu	_k4N, _k4N, _4N
 	ble		_k, _pivot_max, loop_pivot_elems
-	nop
+	addu	_k4N, _k4N, _4N
 
 end_loop_block_cols:
 	addu	_J, _J, _4M
