@@ -9,12 +9,12 @@ void eliminate (double **A, int N, int B) {
     /* for all block rows */
 
     for (I = 0; I < N; I += M) {
-        br = I + M
+        br = (I + M) * 4
         /* for all block columns */
         for (J = 0; J < N; J += M) {
-            bc = J + M
+            bc = (J + M) * 4
             /* loop over pivot elements */
-            for (k = 0; k < Min(br, bc); k++, kN += N) {
+            for (k = 0; k < Min(br, bc); k += 4, kN += N) {
                 //k += A
                 max_kJ = Max(k + 1, J)
                 /* if pivot element within block */

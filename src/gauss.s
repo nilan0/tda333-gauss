@@ -1,8 +1,8 @@
 ### Text segment
 	.text
 start:
-	la		$a0, matrix_4x4		# a0 = A (base address of matrix)
-	li		$a1, 4    		    # a1 = N (number of elements per row)
+	la		$a0, matrix_24x24		# a0 = A (base address of matrix)
+	li		$a1, 24    		    # a1 = N (number of elements per row)
 	li		$a2, 1				# a2 = B
 	
 								# <debug>
@@ -63,22 +63,26 @@ mflo	_M
 .eqv	_A_kj $t0
 
 .eqv	_max_kJ $t3
-.eqv	_kN		$s3
-.eqv	_iN		$s4
+.eqv	_4N		$s5
+.eqv	_k4N	$s3
+.eqv	_i4N	$s4
+.eqv	_4M		$s6 
+.eqv	_kN		$s7
+
+sll		_4N, _N, 2
+sll		_4M, _M, 2
 
 # for all block rows
 	move	_I, $zero
 loop_block_rows:
-	addu	_block_row_max, _I, _M
-	addu	_block_row_max, _block_row_max, -1
-
-	
+	addu	_block_row_max, _I, _4M
+	addu	_block_row_max, _block_row_max, -4
 
 # for all block columns
 	move	_J, $zero
 loop_block_cols:
-	addu	_block_col_max, _J, _M
-	addu	_block_col_max, _block_col_max, -1
+	addu	_block_col_max, _J, _4M
+	addu	_block_col_max, _block_col_max, -4
 
 # loop over pivot elements
 	move	_k, $zero
@@ -88,80 +92,58 @@ loop_block_cols:
 	nop
 	move	_pivot_max, _block_col_max
 
-
 # loop over pivot elements
-	move	_kN, _k
+	move	_k4N, _k
 loop_pivot_elems:
-	addu 	_max_kJ, _k, 1
+	addu 	_max_kJ, _k, 4
 	bge		_max_kJ, _J, end_max
 	nop
 	move	_max_kJ, _J
 end_max:
 	move	_j, _max_kJ
 
-	
-	
-
 # if pivot element within block
 if_elem_in_block:
-	blt		_k, _I, loop_below_pivot_row
+	blt		_k, _I, init_loop_below_pivot_row
 	nop
-	bgt		_k, _block_row_max, loop_below_pivot_row
+	bgt		_k, _block_row_max, init_loop_below_pivot_row
 	nop
-
-	
 
 # perform calculations on pivot
 	# A[k][k]
-	addu	_A_kk, _kN, _k
-	sll		_A_kk, _A_kk, 2
+	addu	_A_kk, _k4N, _k
 	addu	_A_kk, _A_kk, _A
-
 
 loop_calc:
 	# A[k][j]
-	addu	_A_kj, _kN, _j
-	sll		_A_kj, _A_kj, 2
+	addu	_A_kj, _k4N, _j
 	addu	_A_kj, _A_kj, _A
-
 	l.s		$f0, (_A_kj)
 	nop
 	l.s		$f1, (_A_kk)
 	nop
-
 	div.s	$f0, $f0, $f1
 	s.s		$f0, (_A_kj)
 
 end_loop_calc:
-	addiu	_j, _j, 1
+	addiu	_j, _j, 4
 	nop
 	ble		_j, _block_col_max, loop_calc
 	nop
 	
-
-
-
-
-
 # if last element in row
 if_elem_last:
-
-
-
-
-	#subu	$s3, _N, 2
 	nop
-	bne		_j, _N, not_elem_last
+	bne		_j, _4N, not_elem_last
 	nop
 	l.s		$f0, _1f
 	nop
 	s.s		$f0, (_A_kk)
 not_elem_last:
 
-
 # for all rows below pivot row within block
 # Max
-	addu	_i, _k, 1
+	addu	_i, _k, 4
 	bge		_i, _I, end_max_0
 	nop
 	move	_i, _I
@@ -169,30 +151,23 @@ not_elem_last:
 end_max_0:
 
 # iN
-	mulu	_iN, _i, _N
+init_loop_below_pivot_row:
+	mulu	_i4N, _i, _N
+	#sll		_i4N, _i4N, 2
 	
 loop_below_pivot_row:
 	# A[i][k]
-	#mulu	_A_ik, _i, _N
-	addu	_A_ik, _iN, _k
-	sll		_A_ik, _A_ik, 2
+	addu	_A_ik, _i4N, _k
 	addu	_A_ik, _A_ik, _A
-	
 	move	_j, _max_kJ
 
 loop_block_row:
-
-
 	# A[k][j]
-	#mulu	_A_kj, _k, _N
-	addu	_A_kj, _kN, _j
-	sll		_A_kj, _A_kj, 2
+	addu	_A_kj, _k4N, _j
 	addu	_A_kj, _A_kj, _A
 
 	# A[i][j]
-	#mulu	_A_ij, _i, _N
-	addu	_A_ij, _iN, _j
-	sll		_A_ij, _A_ij, 2
+	addu	_A_ij, _i4N, _j
 	addu	_A_ij, _A_ij, _A
 
 	l.s		$f0, (_A_ij)
@@ -207,41 +182,38 @@ loop_block_row:
 	sub.s	$f0, $f0, $f1
 
 	s.s		$f0, (_A_ij)
-
+	
 end_loop_block_row:
-	addiu	_j, _j, 1
-	nop
+	addiu	_j, _j, 4
 	ble		_j, _block_col_max, loop_block_row
 	nop
 
 # if last element in row
-	bne		_j, _N, end_loop_below_pivot_row
+	bne		_j, _4N, end_loop_below_pivot_row
 	nop
 	l.s		$f5, _0f
 	s.s		$f5, (_A_ik)
 
 end_loop_below_pivot_row:
-	addiu	_i, _i, 1
-	addu	_iN, _iN, _N
-	nop
+	addiu	_i, _i, 4
+	addu	_i4N, _i4N, _4N
 	ble		_i, _block_row_max, loop_below_pivot_row
 	nop
 
 end_loop_pivot_elems:
-	addiu	_k, _k, 1
-	addu	_kN, _kN, _N
-	nop
+	addiu	_k, _k, 4
+	addu	_k4N, _k4N, _4N
 	ble		_k, _pivot_max, loop_pivot_elems
 	nop
 
 end_loop_block_cols:
-	addu	_J, _J, _M
-	blt		_J, _N, loop_block_cols
+	addu	_J, _J, _4M
+	blt		_J, _4N, loop_block_cols
 	nop
 	
 end_loop_block_rows:
-	addu	_I, _I, _M
-	blt		_I, _N, loop_block_rows
+	addu	_I, _I, _4M
+	blt		_I, _4N, loop_block_rows
 	nop
 
 	lw		$ra, 0($sp)			# done restoring registers
