@@ -3,15 +3,15 @@
 start:
 	la		$a0, matrix_24x24		# a0 = A (base address of matrix)
 	li		$a1, 24    		    # a1 = N (number of elements per row)
-	li		$a2, 2				# a2 = B
+	li		$a2, 4				# a2 = B
 	
 								# <debug>
 	#jal 	print_matrix	    # print matrix before elimination
 	#nop							# </debug>
 	jal 	eliminate			# triangularize matrix!
 	nop							# <debug>
-	#jal 	print_matrix		# print matrix after elimination
-	#nop							# </debug>
+	jal 	print_matrix		# print matrix after elimination
+	nop							# </debug>
 	jal 	exit
 
 exit:
@@ -25,11 +25,6 @@ exit:
 #			$a1  - number of elements per row (N)
 
 eliminate:
-	#l.s		$f0, _0f
-	#addu	$t0, $a0, $a1
-	#s.s		$f0, ($t0)
-
-
 	# If necessary, create stack frame, and save return address from ra
 	addiu	$sp, $sp, -4		# allocate stack frame
 	sw		$ra, 0($sp)			# done saving registers
@@ -67,25 +62,29 @@ divu	_M, _N, _B
 .eqv	_i4N		$s4
 .eqv	_4M		$s6 
 .eqv	_kN		$s7
+l.s	$f9, _0f
+l.s	$f8, _1f
 
+	
 	sll	_4N, _N, 2
 	sll	_4M, _M, 2
+	
 
 # for all block rows
+	
 	move	_I, $zero
+	nop	# -2000
+	nop
 loop_block_rows:
 	bge	_I, _4N, end_loop_block_rows
-	nop
-
 	addu	_block_row_max, _I, _4M
 	addu	_block_row_max, _block_row_max, -4
 
 # for all block columns
 	move	_J, $zero
+	nop
 loop_block_cols:
 	bge	_J, _4N, end_loop_block_cols
-	nop
-
 	addu	_block_col_max, _J, _4M
 	addu	_block_col_max, _block_col_max, -4
 
@@ -103,39 +102,47 @@ loop_pivot_elems:
 	bgt	_k, _pivot_max, end_loop_pivot_elems
 	nop
 	
-
 	addu 	_max_kJ, _k, 4
 	bge	_max_kJ, _J, end_max
 	nop
 	move	_max_kJ, _J
-end_max:
-	move	_j, _max_kJ
+	
+	
 
 # if pivot element within block
 if_elem_in_block:
+	# 178472
 	blt	_k, _I, init_loop_below_pivot_row
 	nop
 	bgt	_k, _block_row_max, init_loop_below_pivot_row
 	nop
-
+	
+	#blt	_k, _J, end_max
+	#move	_max_kJ, _J
+	#addu 	_max_kJ, _k, 4
+end_max:
+	move	_j, _max_kJ
+	
 # perform calculations on pivot
 	# A[k][k]
+	
 	addu	_A_kk, _k4N, _k
 	addu	_A_kk, _A_kk, _A
 	l.s	$f1, (_A_kk)
+	#nop
+	#div.s	$f1, $f8, $f1
+	
 
 loop_calc:
 	bgt	_j, _block_col_max, end_loop_calc
-	nop
 	
-
 	# A[k][j]
 	addu	_A_kj, _k4N, _j
 	addu	_A_kj, _A_kj, _A
 	l.s	$f0, (_A_kj)
+	#mul.s	$f0, $f0, $f1
 	div.s	$f0, $f0, $f1
 	s.s	$f0, (_A_kj)
-	
 	
 	b	loop_calc
 	addiu	_j, _j, 4
@@ -146,9 +153,7 @@ end_loop_calc:
 if_elem_last:
 	bne	_j, _4N, not_elem_last_0
 	nop
-	l.s	$f0, _1f
-	nop
-	s.s	$f0, (_A_kk)
+	s.s	$f8, (_A_kk)
 not_elem_last_0:
 
 init_loop_below_pivot_row:
@@ -158,16 +163,12 @@ init_loop_below_pivot_row:
 	bge	_i, _I, end_max_0
 	nop
 	move	_i, _I
-	nop
 end_max_0:
 
 # iN
-
 	mulu	_i4N, _i, _N
-	
 loop_below_pivot_row:
-	bgt		_i, _block_row_max, end_loop_below_pivot_row
-	nop
+	bgt	_i, _block_row_max, end_loop_below_pivot_row
 
 	# A[i][k]
 	addu	_A_ik, _i4N, _k
@@ -176,7 +177,6 @@ loop_below_pivot_row:
 
 loop_block_row:
 	bgt	_j, _block_col_max, end_loop_block_row
-	nop
 
 	# A[k][j]
 	addu	_A_kj, _k4N, _j
@@ -199,14 +199,11 @@ loop_block_row:
 	addiu	_j, _j, 4
 	
 end_loop_block_row:
-	
-	nop
 
 # if last element in row
-	bne	_j, _4N not_last_elem
+	bne	_j, _4N, not_last_elem
 	nop
-	l.s	$f5, _0f
-	s.s	$f5, (_A_ik)
+	s.s	$f9, (_A_ik)
 not_last_elem:
 	
 	addiu	_i, _i, 4
@@ -228,7 +225,6 @@ end_loop_block_cols:
 	b	loop_block_rows
 	addu	_I, _I, _4M
 end_loop_block_rows:
-	nop
 
 	lw	$ra, 0($sp)			# done restoring registers
 	addiu	$sp, $sp, 4			# remove stack frame
