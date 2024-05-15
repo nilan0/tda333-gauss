@@ -37,8 +37,9 @@ eliminate:
 .eqv	_M	$s0
 .eqv	_N	$a1
 .eqv	_B	$a2
-# size of block is (M*M)
-divu	_M, _N, _B
+
+div _N, _B
+mflo	_M
 
 
 .eqv	_I		$t8
@@ -127,8 +128,7 @@ if_elem_in_block:
 	addu	_A_kk, _k4N, _k
 	addu	_A_kk, _A_kk, _A
 	l.s	$f1, (_A_kk)
-	#nop
-	#div.s	$f1, $f8, $f1
+	div.s	$f1, $f8, $f1
 	
 
 loop_calc:
@@ -138,8 +138,7 @@ loop_calc:
 	addu	_A_kj, _k4N, _j
 	addu	_A_kj, _A_kj, _A
 	l.s	$f0, (_A_kj)
-	#mul.s	$f0, $f0, $f1
-	div.s	$f0, $f0, $f1
+	mul.s	$f0, $f0, $f1
 	s.s	$f0, (_A_kj)
 	
 	b	loop_calc
