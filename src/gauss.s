@@ -43,8 +43,7 @@ eliminate:
 .eqv	_N	$a1
 .eqv	_B	$a2
 # size of block is (M*M)
-div	_N, _B
-mflo	_M
+divu	_M, _N, _B
 
 
 .eqv	_I		$t8
@@ -75,12 +74,18 @@ mflo	_M
 # for all block rows
 	move	_I, $zero
 loop_block_rows:
+	bge	_I, _4N, end_loop_block_rows
+	nop
+
 	addu	_block_row_max, _I, _4M
 	addu	_block_row_max, _block_row_max, -4
 
 # for all block columns
 	move	_J, $zero
 loop_block_cols:
+	bge	_J, _4N, end_loop_block_cols
+	nop
+
 	addu	_block_col_max, _J, _4M
 	addu	_block_col_max, _block_col_max, -4
 
@@ -94,6 +99,9 @@ loop_block_cols:
 # loop over pivot elements
 	move	_k4N, _k
 loop_pivot_elems:
+	bgt	_k, _pivot_max, end_loop_pivot_elems
+	
+
 	addu 	_max_kJ, _k, 4
 	bge	_max_kJ, _J, end_max
 	nop
@@ -156,6 +164,8 @@ init_loop_below_pivot_row:
 	mulu	_i4N, _i, _N
 	
 loop_below_pivot_row:
+	bgt		_i, _block_row_max, end_loop_below_pivot_row
+
 	# A[i][k]
 	addu	_A_ik, _i4N, _k
 	move	_j, _max_kJ
@@ -193,31 +203,32 @@ end_loop_block_row:
 	nop
 	l.s	$f5, _0f
 	s.s	$f5, (_A_ik)
-
-end_loop_below_pivot_row:
-	addiu	_i, _i, 4
-	ble		_i, _block_row_max, loop_below_pivot_row
-	addu	_i4N, _i4N, _4N
-
-end_loop_pivot_elems:
-	addiu	_k, _k, 4
-	ble		_k, _pivot_max, loop_pivot_elems
-	addu	_k4N, _k4N, _4N
-
-end_loop_block_cols:
-	addu	_J, _J, _4M
-	blt		_J, _4N, loop_block_cols
-	nop
 	
-end_loop_block_rows:
+	addiu	_i, _i, 4
+	b	loop_below_pivot_row
+	addu	_i4N, _i4N, _4N
+end_loop_below_pivot_row:
+	
+	
+	addiu	_k, _k, 4
+	b	loop_pivot_elems
+	addu	_k4N, _k4N, _4N
+end_loop_pivot_elems:
+
+
+	b	loop_block_cols
+	addu	_J, _J, _4M
+end_loop_block_cols:
+	
+	b	loop_block_rows
 	addu	_I, _I, _4M
-	blt		_I, _4N, loop_block_rows
+end_loop_block_rows:
 	nop
 
-	lw		$ra, 0($sp)			# done restoring registers
+	lw	$ra, 0($sp)			# done restoring registers
 	addiu	$sp, $sp, 4			# remove stack frame
 
-	jr		$ra					# return from subroutine
+	jr	$ra					# return from subroutine
 	nop							# this is the delay slot associated with all types of jumps
 
 ################################################################################
