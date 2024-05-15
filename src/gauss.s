@@ -101,11 +101,13 @@ end_min_0:
 loop_pivot_elems:
 	bgt	_k, _pivot_max, end_loop_pivot_elems
 	nop
+
 	
-	addu 	_max_kJ, _k, 4
-	bge	_max_kJ, _J, end_max
-	nop
+	blt	_k, _J, end_max
 	move	_max_kJ, _J
+	addu 	_max_kJ, _k, 4
+	nop
+end_max:
 	
 	
 
@@ -116,11 +118,7 @@ if_elem_in_block:
 	nop
 	bgt	_k, _block_row_max, init_loop_below_pivot_row
 	nop
-	
-	#blt	_k, _J, end_max
-	#move	_max_kJ, _J
-	#addu 	_max_kJ, _k, 4
-end_max:
+
 	move	_j, _max_kJ
 	
 # perform calculations on pivot
