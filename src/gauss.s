@@ -98,7 +98,7 @@ loop_block_cols:
 end_min_0:
 
 # loop over pivot elements
-	move	_k4N, _k
+	addu	_k4N, _k, _A
 loop_pivot_elems:
 	bgt	_k, _pivot_max, end_loop_pivot_elems
 	nop
@@ -114,7 +114,6 @@ end_max:
 
 # if pivot element within block
 if_elem_in_block:
-	# 178472
 	blt	_k, _I, init_loop_below_pivot_row
 	nop
 	bgt	_k, _block_row_max, init_loop_below_pivot_row
@@ -124,9 +123,7 @@ if_elem_in_block:
 	
 # perform calculations on pivot
 	# A[k][k]
-	
 	addu	_A_kk, _k4N, _k
-	addu	_A_kk, _A_kk, _A
 	l.s	$f1, (_A_kk)
 	div.s	$f1, $f8, $f1
 	
@@ -136,7 +133,6 @@ loop_calc:
 	
 	# A[k][j]
 	addu	_A_kj, _k4N, _j
-	addu	_A_kj, _A_kj, _A
 	l.s	$f0, (_A_kj)
 	mul.s	$f0, $f0, $f1
 	s.s	$f0, (_A_kj)
@@ -164,24 +160,22 @@ end_max_0:
 
 # iN
 	mulu	_i4N, _i, _N
+	addu	_i4N, _i4N, _A
 loop_below_pivot_row:
 	bgt	_i, _block_row_max, end_loop_below_pivot_row
 
 	# A[i][k]
 	addu	_A_ik, _i4N, _k
 	move	_j, _max_kJ
-	addu	_A_ik, _A_ik, _A
 
 loop_block_row:
 	bgt	_j, _block_col_max, end_loop_block_row
 
 	# A[k][j]
 	addu	_A_kj, _k4N, _j
-	addu	_A_kj, _A_kj, _A
 
 	# A[i][j]
 	addu	_A_ij, _i4N, _j
-	addu	_A_ij, _A_ij, _A
 
 	l.s	$f1, (_A_ik)
 	l.s	$f2, (_A_kj)
