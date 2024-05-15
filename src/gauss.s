@@ -1,8 +1,8 @@
 ### Text segment
 	.text
 start:
-	la		$a0, matrix_24x24		# a0 = A (base address of matrix)
-	li		$a1, 24    		    # a1 = N (number of elements per row)
+	la		$a0, matrix_4x4		# a0 = A (base address of matrix)
+	li		$a1, 4    		    # a1 = N (number of elements per row)
 	li		$a2, 1				# a2 = B
 	
 								# <debug>
@@ -103,9 +103,9 @@ end_max:
 
 # if pivot element within block
 if_elem_in_block:
-	blt		_k, _I, init_loop_below_pivot_row
+	blt	_k, _I, init_loop_below_pivot_row
 	nop
-	bgt		_k, _block_row_max, init_loop_below_pivot_row
+	bgt	_k, _block_row_max, init_loop_below_pivot_row
 	nop
 
 # perform calculations on pivot
@@ -114,29 +114,32 @@ if_elem_in_block:
 	addu	_A_kk, _A_kk, _A
 
 loop_calc:
+	bgt	_j, _block_col_max, end_loop_calc
+	
+
 	# A[k][j]
 	addu	_A_kj, _k4N, _j
 	addu	_A_kj, _A_kj, _A
-	l.s		$f0, (_A_kj)
+	l.s	$f0, (_A_kj)
 	nop
-	l.s		$f1, (_A_kk)
+	l.s	$f1, (_A_kk)
 	nop
 	div.s	$f0, $f0, $f1
-	s.s		$f0, (_A_kj)
-
-end_loop_calc:
+	s.s	$f0, (_A_kj)
+	
+	
+	b	loop_calc
 	addiu	_j, _j, 4
-	ble		_j, _block_col_max, loop_calc
-	nop
+	
+end_loop_calc:
 	
 # if last element in row
 if_elem_last:
+	bne	_j, _4N, not_elem_last
 	nop
-	bne		_j, _4N, not_elem_last
+	l.s	$f0, _1f
 	nop
-	l.s		$f0, _1f
-	nop
-	s.s		$f0, (_A_kk)
+	s.s	$f0, (_A_kk)
 not_elem_last:
 
 # for all rows below pivot row within block
@@ -151,7 +154,6 @@ end_max_0:
 # iN
 init_loop_below_pivot_row:
 	mulu	_i4N, _i, _N
-	#sll		_i4N, _i4N, 2
 	
 loop_below_pivot_row:
 	# A[i][k]
@@ -160,6 +162,8 @@ loop_below_pivot_row:
 	addu	_A_ik, _A_ik, _A
 
 loop_block_row:
+	bgt	_j, _block_col_max, end_loop_block_row
+
 	# A[k][j]
 	addu	_A_kj, _k4N, _j
 	addu	_A_kj, _A_kj, _A
@@ -168,25 +172,27 @@ loop_block_row:
 	addu	_A_ij, _i4N, _j
 	addu	_A_ij, _A_ij, _A
 
-	l.s		$f1, (_A_ik)
-	l.s		$f2, (_A_kj)
-	l.s		$f0, (_A_ij)
+	l.s	$f1, (_A_ik)
+	l.s	$f2, (_A_kj)
+	l.s	$f0, (_A_ij)
 
 	mul.s	$f1, $f1, $f2
 	sub.s	$f0, $f0, $f1
 
-	s.s		$f0, (_A_ij)
+	s.s	$f0, (_A_ij)
+	
+	b	loop_block_row
+	addiu	_j, _j, 4
 	
 end_loop_block_row:
-	addiu	_j, _j, 4
-	ble	_j, _block_col_max, loop_block_row
+	
 	nop
 
 # if last element in row
-	bne		_j, _4N, end_loop_below_pivot_row
+	bne	_j, _4N, end_loop_below_pivot_row
 	nop
-	l.s		$f5, _0f
-	s.s		$f5, (_A_ik)
+	l.s	$f5, _0f
+	s.s	$f5, (_A_ik)
 
 end_loop_below_pivot_row:
 	addiu	_i, _i, 4
