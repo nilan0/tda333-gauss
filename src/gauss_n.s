@@ -10,8 +10,8 @@ start:
 	#nop							# </debug>
 	jal 	eliminate			# triangularize matrix!
 	nop							# <debug>
-	#jal 	print_matrix		# print matrix after elimination
-	#nop							# </debug>
+	jal 	print_matrix		# print matrix after elimination
+	nop							# </debug>
 	jal 	exit
 
 exit:
@@ -33,49 +33,48 @@ eliminate:
 	## Implement eliminate here
 	## 
 .eqv	_A	$a0
-
-.eqv	_M	$s0
 .eqv	_N	$a1
-.eqv	_B	$a2
 
+.eqv	_k  		$s0
+.eqv	_j		$s1
+.eqv	_i		$s2
 
-.eqv	_k  		$t7
-.eqv	_j		$t6
-.eqv	_i		$t5
-.eqv	_A_kk		$t1
-.eqv	_A_kj		$t0
-
+.eqv	_A_kk		$t0
+.eqv	_A_kj		$t1
 .eqv	_A_ij		$t2
-.eqv	_A_ik		$t1
-.eqv	_A_kj		$t0
+.eqv	_A_ik		$t3
 
-.eqv	_max_kJ		$t3
-.eqv	_4N		$s5
-.eqv	_k4N		$s3
-.eqv	_i4N		$s4
-.eqv	_4M		$s6 
-.eqv	_kN		$s7
-l.s	$f9, _0f
-l.s	$f8, _1f
+.eqv	_k4N		$t4
+.eqv	_i4N		$t5
+.eqv	_4N		$t6
+.eqv	_kN		$t7
+
+.eqv	_0f		$f8
+.eqv	_1f		$f9
+
+l.s	_0f, float0
+l.s	_1f, float1
 
 sll	_4N, _N, 2
 	
 
 	move	_k, $zero
+	move	_k4N, _A
 
 # Loop over all diagonal (pivot) elements
 loop_pivots:
 	bge	_k, _4N, end_loop_pivots	# 4k < 4N
 	
-	mulu	_k4N, _k, _N			# 4k * N
-	addu	_k4N, _k4N, _A			# 4k * N  + A
+	#mulu	_k4N, _k, _N
+	#addu	_k4N, _k4N, _A
 	
 	# A[k][k]
 	addu	_A_kk, _k4N, _k
 	l.s	$f2, (_A_kk)
-	div.s	$f2, $f8, $f2
-	
 	addiu	_j, _k, 4
+	div.s	$f2, _1f, $f2
+	
+	
 	
 
 # for all elements in pivot row and right of pivot element
@@ -84,6 +83,7 @@ loop_row:
 	
 		# A[k][j]
 		addu	_A_kj, _k4N, _j
+		
 		l.s	$f0, (_A_kj)
 		mul.s	$f0, $f0, $f2
 		s.s	$f0, (_A_kj)
@@ -91,7 +91,7 @@ loop_row:
 	b	loop_row
 	addiu	_j, _j, 4
 end_loop_row:
-	s.s	$f8, (_A_kk)
+	s.s	_1f, (_A_kk)
 
 	addu	_i, _k, 4
 	mulu	_i4N, _i, _N
@@ -125,7 +125,7 @@ loop_right:
 		b	loop_right
 		addiu	_j, _j, 4
 end_loop_right:
-		s.s	$f9, (_A_ik)
+		s.s	_0f, (_A_ik)
 
 		addu	_i4N, _i4N, _4N
 		b	loop_below
@@ -235,8 +235,8 @@ loop_s0:
 
 ### Data segment 
 	.data
-_1f: .float 1.0
-_0f: .float 0.0
+float1: .float 1.0
+float0: .float 0.0
 	
 ### String constants
 spaces:
