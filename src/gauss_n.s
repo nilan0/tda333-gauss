@@ -10,8 +10,8 @@ start:
 	#nop							# </debug>
 	jal 	eliminate			# triangularize matrix!
 	nop							# <debug>
-	jal 	print_matrix		# print matrix after elimination
-	nop							# </debug>
+	#jal 	print_matrix		# print matrix after elimination
+	#nop							# </debug>
 	jal 	exit
 
 exit:
@@ -94,15 +94,14 @@ loop_row:
 end_loop_row:
 	s.s	_1f, (_A_kk)
 
-	addu	_i, _k, 4
+	addiu	_i, _k, 4
 	addu	_i4N, _k4N, _4N
-
 loop_below:
 	bge	_i, _4N, end_loop_below
 
 		# A[i][k]
 		addu	_A_ik, _i4N, _k
-		addu	 _j, _k, 4
+		addiu	 _j, _k, 4
 loop_right:
 		bge	_j, _4N, end_loop_right
 
