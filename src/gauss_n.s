@@ -52,8 +52,10 @@ eliminate:
 .eqv	_0f		$f8
 .eqv	_1f		$f9
 
-l.s	_0f, float0
-l.s	_1f, float1
+li	$t0, 0
+li	$t1, 0x3f800000
+mtc1	$t0, _0f
+mtc1	$t1, _1f
 
 sll	_4N, _N, 2
 	
