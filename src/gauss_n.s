@@ -57,7 +57,9 @@ li	$t1, 0x3f800000
 mtc1	$t0, _0f
 mtc1	$t1, _1f
 
+
 sll	_4N, _N, 2
+
 	
 
 	move	_k, $zero
@@ -66,9 +68,6 @@ sll	_4N, _N, 2
 # Loop over all diagonal (pivot) elements
 loop_pivots:
 	bge	_k, _4N, end_loop_pivots	# 4k < 4N
-	
-	#mulu	_k4N, _k, _N
-	#addu	_k4N, _k4N, _A
 	
 	# A[k][k]
 	addu	_A_kk, _k4N, _k
@@ -96,14 +95,13 @@ end_loop_row:
 	s.s	_1f, (_A_kk)
 
 	addu	_i, _k, 4
-	mulu	_i4N, _i, _N
-	addu	_i4N, _i4N, _A
+	addu	_i4N, _k4N, _4N
+
 loop_below:
 	bge	_i, _4N, end_loop_below
 
 		# A[i][k]
 		addu	_A_ik, _i4N, _k
-	
 		addu	 _j, _k, 4
 loop_right:
 		bge	_j, _4N, end_loop_right
@@ -237,8 +235,6 @@ loop_s0:
 
 ### Data segment 
 	.data
-float1: .float 1.0
-float0: .float 0.0
 	
 ### String constants
 spaces:
