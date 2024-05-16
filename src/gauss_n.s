@@ -16,7 +16,9 @@ start:
 
 exit:
 	li   	$v0, 10          	# specify exit system call
-	syscall						# exit program
+	syscall				# exit program
+	nop
+
 
 ################################################################################
 # eliminate - Triangularize matrix.
@@ -48,10 +50,10 @@ eliminate:
 .eqv	_i4N		$t5
 .eqv	_4N		$t6
 .eqv	_kN		$t7
+.eqv	_k_plus_1	$t8
 
 .eqv	_0f		$f8
 .eqv	_1f		$f9
-
 li	$t0, 0
 li	$t1, 0x3f800000
 mtc1	$t0, _0f
@@ -60,11 +62,9 @@ mtc1	$t1, _1f
 
 sll	_4N, _N, 2
 
-	
-
 	move	_k, $zero
 	move	_k4N, _A
-
+	
 # Loop over all diagonal (pivot) elements
 loop_pivots:
 	bge	_k, _4N, end_loop_pivots	# 4k < 4N
@@ -142,39 +142,6 @@ end_loop_pivots:
 	jr	$ra					# return from subroutine
 	nop							# this is the delay slot associated with all types of jumps
 
-################################################################################
-# getelem - Get address and content of matrix element A[a][b].
-#
-# Argument registers $a0..$a3 are preserved across calls
-#
-# Args:		$a0  - base address of matrix (A)
-#			$a1  - number of elements per row (N)
-#			$a2  - row number (a)
-#			$a3  - column number (b)
-#						
-# Returns:	$v0  - Address to A[a][b]
-#			$f0  - Contents of A[a][b] (single precision)
-getelem:
-	addiu	$sp, $sp, -12		# allocate stack frame
-	sw		$s2, 8($sp)
-	sw		$s1, 4($sp)
-	sw		$s0, 0($sp)			# done saving registers
-	
-	sll		$s2, $a1, 2			# s2 = 4*N (number of bytes per row)
-	multu	$a2, $s2			# result will be 32-bit unless the matrix is huge
-	mflo	$s1					# s1 = a*s2
-	addu	$s1, $s1, $a0		# Now s1 contains address to row a
-	sll		$s0, $a3, 2			# s0 = 4*b (byte offset of column b)
-	addu	$v0, $s1, $s0		# Now we have address to A[a][b] in v0...
-	l.s		$f0, 0($v0)		    # ... and contents of A[a][b] in f0.
-	
-	lw		$s2, 8($sp)
-	lw		$s1, 4($sp)
-	lw		$s0, 0($sp)			# done restoring registers
-	addiu	$sp, $sp, 12		# remove stack frame
-		
-	jr		$ra					# return from subroutine
-	nop							# this is the delay slot associated with all types of jumps
 
 ################################################################################
 # print_matrix
