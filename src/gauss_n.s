@@ -3,7 +3,7 @@
 start:
 	la		$a0, matrix_24x24		# a0 = A (base address of matrix)
 	li		$a1, 24    		    # a1 = N (number of elements per row)
-	li		$a2, 1				# a2 = B
+	#li		$a2, 1				# a2 = B
 	
 								# <debug>
 	#jal 	print_matrix	    # print matrix before elimination
@@ -38,18 +38,10 @@ eliminate:
 .eqv	_N	$a1
 .eqv	_B	$a2
 
-div _N, _B
-mflo	_M
 
-
-.eqv	_I		$t8
-.eqv	_J		$t9
-.eqv	_block_row_max $s1
-.eqv	_block_col_max $s2
 .eqv	_k  		$t7
 .eqv	_j		$t6
 .eqv	_i		$t5
-.eqv	_pivot_max 	$t4
 .eqv	_A_kk		$t1
 .eqv	_A_kj		$t0
 
@@ -66,158 +58,84 @@ mflo	_M
 l.s	$f9, _0f
 l.s	$f8, _1f
 
-	
-	sll	_4N, _N, 2
-	sll	_4M, _M, 2
+sll	_4N, _N, 2
 	
 
-# for all block rows
-	
-	move	_I, $zero
-	nop	# -2000
-	nop
-loop_block_rows:
-	bge	_I, _4N, end_loop_block_rows
-	addu	_block_row_max, _I, _4M
-	addu	_block_row_max, _block_row_max, -4
-
-# for all block columns
-	move	_J, $zero
-	nop
-loop_block_cols:
-	bge	_J, _4N, end_loop_block_cols
-	addu	_block_col_max, _J, _4M
-	addu	_block_col_max, _block_col_max, -4
-
-# loop over pivot elements
 	move	_k, $zero
-# Min
-	ble	_block_row_max, _block_col_max, end_min_0
-	move	_pivot_max, _block_row_max
-	move	_pivot_max, _block_col_max
-end_min_0:
 
-# loop over pivot elements
-	addu	_k4N, _k, _A
-loop_pivot_elems:
-	bgt	_k, _pivot_max, end_loop_pivot_elems
-	nop
-
+# Loop over all diagonal (pivot) elements
+loop_pivots:
+	bge	_k, _4N, end_loop_pivots	# 4k < 4N
 	
-	blt	_k, _J, end_max
-	move	_max_kJ, _J
-	addu 	_max_kJ, _k, 4
-	nop
-end_max:
+	mulu	_k4N, _k, _N			# 4k * N
+	addu	_k4N, _k4N, _A			# 4k * N  + A
 	
-	
-
-# if pivot element within block
-if_elem_in_block:
-	blt	_k, _I, init_loop_below_pivot_row
-	nop
-	bgt	_k, _block_row_max, init_loop_below_pivot_row
-	nop
-
-	move	_j, _max_kJ
-	
-# perform calculations on pivot
 	# A[k][k]
 	addu	_A_kk, _k4N, _k
-	l.s	$f1, (_A_kk)
-	div.s	$f1, $f8, $f1
+	l.s	$f2, (_A_kk)
+	div.s	$f2, $f8, $f2
+	
+	addiu	_j, _k, 4
 	
 
-loop_calc:
-	bgt	_j, _block_col_max, end_loop_calc
+# for all elements in pivot row and right of pivot element
+loop_row:
+	bge	_j, _4N, end_loop_row
 	
-	# A[k][j]
-	addu	_A_kj, _k4N, _j
-	l.s	$f0, (_A_kj)
-	mul.s	$f0, $f0, $f1
-	s.s	$f0, (_A_kj)
+		# A[k][j]
+		addu	_A_kj, _k4N, _j
+		l.s	$f0, (_A_kj)
+		mul.s	$f0, $f0, $f2
+		s.s	$f0, (_A_kj)
 	
-	b	loop_calc
+	b	loop_row
 	addiu	_j, _j, 4
-	
-end_loop_calc:
-	
-# if last element in row
-if_elem_last:
-	bne	_j, _4N, not_elem_last_0
-	nop
+end_loop_row:
 	s.s	$f8, (_A_kk)
-not_elem_last_0:
 
-init_loop_below_pivot_row:
-# for all rows below pivot row within block
-# Max
 	addu	_i, _k, 4
-	bge	_i, _I, end_max_0
-	nop
-	move	_i, _I
-end_max_0:
-
-# iN
 	mulu	_i4N, _i, _N
 	addu	_i4N, _i4N, _A
-loop_below_pivot_row:
-	bgt	_i, _block_row_max, end_loop_below_pivot_row
+loop_below:
+	bge	_i, _4N, end_loop_below
 
-	# A[i][k]
-	addu	_A_ik, _i4N, _k
-	move	_j, _max_kJ
-
-loop_block_row:
-	#186083
-	bgt	_j, _block_col_max, end_loop_block_row
-
-	# A[k][j]
-	addu	_A_kj, _k4N, _j
-
-	# A[i][j]
-	addu	_A_ij, _i4N, _j
-
-	l.s	$f1, (_A_ik)
-	l.s	$f2, (_A_kj)
-	l.s	$f0, (_A_ij)
-
-	mul.s	$f1, $f1, $f2
-	sub.s	$f0, $f0, $f1
-
-	s.s	$f0, (_A_ij)
+		# A[i][k]
+		addu	_A_ik, _i4N, _k
 	
-	b	loop_block_row
-	addiu	_j, _j, 4
-	
-end_loop_block_row:
+		addu	 _j, _k, 4
+loop_right:
+		bge	_j, _4N, end_loop_right
 
-# if last element in row
-	bne	_j, _4N, not_last_elem
-	nop
-	s.s	$f9, (_A_ik)
-not_last_elem:
+			# A[k][j]
+			addu	_A_kj, _k4N, _j
+
+
+			# A[i][j]
+			addu	_A_ij, _i4N, _j
+
+			l.s	$f1, (_A_ik)
+			l.s	$f2, (_A_kj)
+			l.s	$f0, (_A_ij)
 	
-	addiu	_i, _i, 4
-	b	loop_below_pivot_row
-	addu	_i4N, _i4N, _4N
-end_loop_below_pivot_row:
+			mul.s	$f1, $f1, $f2
+			sub.s	$f0, $f0, $f1
+
+			s.s	$f0, (_A_ij)
 	
-	
-	addiu	_k, _k, 4
-	b	loop_pivot_elems
+		b	loop_right
+		addiu	_j, _j, 4
+end_loop_right:
+		s.s	$f9, (_A_ik)
+
+		addu	_i4N, _i4N, _4N
+		b	loop_below
+		addiu	_i, _i, 4
+end_loop_below:
+
 	addu	_k4N, _k4N, _4N
-end_loop_pivot_elems:
-
-
-	b	loop_block_cols
-	addu	_J, _J, _4M
-end_loop_block_cols:
-	
-	b	loop_block_rows
-	addu	_I, _I, _4M
-end_loop_block_rows:
-
+	b	loop_pivots
+	addiu	_k, _k, 4
+end_loop_pivots:
 
 	lw	$ra, 0($sp)			# done restoring registers
 	addiu	$sp, $sp, 4			# remove stack frame
